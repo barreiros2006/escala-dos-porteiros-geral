@@ -16,7 +16,6 @@ const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
 const mod = (a, n) => ((a % n) + n) % n;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const clone = o => JSON.parse(JSON.stringify(o));
 const toUTC = str => { const [y, m, d] = str.split('-').map(Number); return Date.UTC(y, m - 1, d); };
 const hojeUTC = () => { const t = new Date(); return Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()); };
 const fmtData = ms => { const d = new Date(ms); return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`; };
@@ -60,7 +59,7 @@ function cicloJovensAntigo(base, grupos) {
   });
 }
 
-/* ---------- dados padrão (planilhas 2º semestre 2026) ---------- */
+/* ---------- dados padrão ---------- */
 function dadosPadrao() {
   const posQuinta = posicoes([1, 2, 1, 1]);
   const posSabado = posicoes([1, 2, 1, 1]);
@@ -190,7 +189,7 @@ function renderLista() {
   const e = escAtual();
   const datas = datasDoPeriodo(e, state.ano, state.mes);
   const h = hojeUTC();
-  const proximo = datasDoPeriodo(e, state.ano, state.mes).find(t => t >= h);
+  const proximo = datas.find(t => t >= h);
   $('tituloEscala').textContent = e.nome;
   $('lista').innerHTML = datas.map(t => {
     const r = escalaDoDia(e, t);
@@ -207,6 +206,41 @@ function renderLista() {
 }
 
 /* ---------- ADM ---------- */
+/* g = -1 → escala fixa; g >= 0 → grupo */
+const cicloDe = (e, g) => (g < 0 ? e.ciclo : e.grupos[g].ciclo);
+function setCiclo(e, g, c) { if (g < 0) e.ciclo = c; else e.grupos[g].ciclo = c; }
+function dataLinha(e, g, r) {
+  const sem = g < 0 ? r : r * e.grupos.length + g;
+  return fmtData(toUTC(e.dataBase) + sem * 7 * DIA_MS).slice(0, 5);
+}
+
+function nomesUnicos(ciclo) {
+  const vistos = [];
+  (ciclo[0] || []).flat().forEach(n => { if (n && !vistos.includes(n)) vistos.push(n); });
+  ciclo.flat(2).forEach(n => { if (n && !vistos.includes(n)) vistos.push(n); });
+  return vistos;
+}
+
+function blocoCiclo(e, g) {
+  const ciclo = cicloDe(e, g);
+  return `
+      <div class="tabela-wrap"><table class="ciclo">
+        <thead><tr><th>Semana</th>${e.posicoes.map(p => `<th>${esc(p.nome)}</th>`).join('')}<th></th></tr></thead>
+        <tbody>${ciclo.map((row, r) => `<tr>
+          <td>${r + 1}<small class="dt">${dataLinha(e, g, r)}</small></td>
+          ${e.posicoes.map((p, i) => `<td><input data-g="${g}" data-r="${r}" data-i="${i}" class="celula" value="${esc((row[i] || []).join(' - '))}"></td>`).join('')}
+          <td><button class="mini perigo" data-del="${r}" data-g="${g}" title="Remover semana">✕</button></td></tr>`).join('')}
+        </tbody></table></div>
+      <button class="sec" data-add="${g}">+ Adicionar semana</button>
+      <details class="auto">
+        <summary>Gerar rodízio automático</summary>
+        <p class="ajuda">Um nome por linha, na ordem da Semana 1. A cada culto todos andam uma posição.
+        Isso substitui o ciclo atual${g < 0 ? ' desta escala' : ' do ' + esc(e.grupos[g].nome)}.</p>
+        <textarea id="admNomes${g}" rows="6">${esc(nomesUnicos(ciclo).join('\n'))}</textarea>
+        <button class="sec" data-gerar="${g}">Gerar ciclo</button>
+      </details>`;
+}
+
 function renderAdm() {
   const box = $('adm');
   $('btnAdm').textContent = state.adm ? 'Sair do ADM' : 'ADM';
@@ -253,41 +287,6 @@ function renderAdm() {
     }).join('')}</div>
     <h3>Senha do ADM</h3>
     <div class="acoes"><button class="sec" id="admPin">Trocar senha</button></div>`;
-}
-
-/* g = -1 → escala fixa; g >= 0 → grupo */
-const cicloDe = (e, g) => (g < 0 ? e.ciclo : e.grupos[g].ciclo);
-function setCiclo(e, g, c) { if (g < 0) e.ciclo = c; else e.grupos[g].ciclo = c; }
-function dataLinha(e, g, r) {
-  const sem = g < 0 ? r : r * e.grupos.length + g;
-  return fmtData(toUTC(e.dataBase) + sem * 7 * DIA_MS).slice(0, 5);
-}
-
-function blocoCiclo(e, g) {
-  const ciclo = cicloDe(e, g);
-  return `
-      <div class="tabela-wrap"><table class="ciclo">
-        <thead><tr><th>Semana</th>${e.posicoes.map(p => `<th>${esc(p.nome)}</th>`).join('')}<th></th></tr></thead>
-        <tbody>${ciclo.map((row, r) => `<tr>
-          <td>${r + 1}<small class="dt">${dataLinha(e, g, r)}</small></td>
-          ${e.posicoes.map((p, i) => `<td><input data-g="${g}" data-r="${r}" data-i="${i}" class="celula" value="${esc((row[i] || []).join(' - '))}"></td>`).join('')}
-          <td><button class="mini perigo" data-del="${r}" data-g="${g}" title="Remover semana">✕</button></td></tr>`).join('')}
-        </tbody></table></div>
-      <button class="sec" data-add="${g}">+ Adicionar semana</button>
-      <details class="auto">
-        <summary>Gerar rodízio automático</summary>
-        <p class="ajuda">Um nome por linha, na ordem da Semana 1. A cada culto todos andam uma posição.
-        Isso substitui o ciclo atual${g < 0 ? ' desta escala' : ' do ' + esc(e.grupos[g].nome)}.</p>
-        <textarea id="admNomes${g}" rows="6">${esc(nomesUnicos(ciclo).join('\n'))}</textarea>
-        <button class="sec" data-gerar="${g}">Gerar ciclo</button>
-      </details>`;
-}
-
-function nomesUnicos(ciclo) {
-  const vistos = [];
-  (ciclo[0] || []).flat().forEach(n => { if (n && !vistos.includes(n)) vistos.push(n); });
-  ciclo.flat(2).forEach(n => { if (n && !vistos.includes(n)) vistos.push(n); });
-  return vistos;
 }
 
 /* lê o formulário para o objeto da escala */
@@ -346,8 +345,9 @@ async function exportarExcel(escalas, ano, nomeArq) {
     const X = await carregarXLSX();
     const wb = X.utils.book_new();
     escalas.forEach(e => {
-      const ws = X.utils.aoa_to_sheet(linhasExport(e, ano));
-      ws['!cols'] = linhasExport(e, ano)[0].map((_, i) => ({ wch: i === 0 ? 12 : 26 }));
+      const linhas = linhasExport(e, ano);
+      const ws = X.utils.aoa_to_sheet(linhas);
+      ws['!cols'] = linhas[0].map((_, i) => ({ wch: i === 0 ? 12 : 26 }));
       X.utils.book_append_sheet(wb, ws, e.curto.slice(0, 31));
     });
     X.writeFile(wb, nomeArq + '.xlsx');
@@ -448,7 +448,11 @@ document.addEventListener('change', ev => {
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 render();
 window.scrollTo(0, 0);
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+/* ---------- funcionamento offline (service-worker.js) ---------- */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js').catch(err => console.warn('Service worker não registrado', err));
+}
 
 /* ---------- botão Instalar app ---------- */
 (function instalarApp() {
@@ -483,6 +487,3 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 
   window.addEventListener('appinstalled', () => { btn.hidden = true; pedido = null; });
 })();
-
-/* exporta para testes */
-if (typeof module !== 'undefined') module.exports = { dadosPadrao, escalaDoDia, toUTC, fmtData };

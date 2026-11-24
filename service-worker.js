@@ -1,7 +1,7 @@
 /* Funcionamento offline – Escala Auxiliares da Porta
-   A CADA ATUALIZAÇÃO PUBLICADA, aumente o número abaixo (v10 → v11 → v12 ...).
+   A CADA ATUALIZAÇÃO PUBLICADA, aumente o número abaixo (v11 → v12 → v13 ...).
    É isso que faz celulares e PCs baixarem a versão nova. */
-const CACHE = 'escala-porta-v10';
+const CACHE = 'escala-porta-v11';
 const ARQUIVOS = [
   './',
   './index.html',

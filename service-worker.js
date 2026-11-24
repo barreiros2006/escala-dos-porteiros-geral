@@ -1,6 +1,6 @@
 /* Funcionamento offline – Escala Auxiliares da Porta
    Troque o número da versão a cada atualização publicada. */
-const CACHE = 'escala-porta-v7';
+const CACHE = 'escala-porta-v8';
 const ARQUIVOS = [
   './',
   './index.html',

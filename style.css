@@ -1,65 +1,96 @@
+/* Estilo baseado no app anterior (verde) */
+:root{
+  --verde-escuro:#064e3b; --verde:#047857; --verde-claro:#d1fae5;
+  --texto:#172033; --cinza:#64748b; --fundo:#f1f5f9; --borda:#dbe3ea; --vermelho:#b91c1c;
+}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:#f1f3f7;color:#1d2433}
+body{margin:0;background:var(--fundo);color:var(--texto);font-family:"Segoe UI",Roboto,Arial,sans-serif}
 button{font:inherit;cursor:pointer}
-.topo{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px;
-  background:#1f2a44;color:#fff;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top))}
-.titulo{display:flex;flex-direction:column;line-height:1.2}
-.titulo .ccb{font-size:.75rem;opacity:.8;white-space:nowrap}
-.titulo strong{font-size:1.1rem;white-space:nowrap}
+
+/* Cabeçalho */
+.topo{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:linear-gradient(135deg,#043c2e,#065f46);color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.18);
+  padding:14px 16px;padding-top:max(14px,env(safe-area-inset-top))}
+.titulo{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.titulo .ccb{font-size:13px;color:#d1fae5;white-space:nowrap}
+.titulo strong{font-size:clamp(19px,3vw,26px);white-space:nowrap}
 .topo-acoes{display:flex;gap:8px;align-items:center}
-.adm-btn{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:8px;padding:6px 12px}
-.instalar-btn{background:#2f6fdf;color:#fff;border:0;border-radius:8px;padding:7px 12px;white-space:nowrap}
+.adm-btn,.instalar-btn{min-height:40px;padding:8px 14px;border-radius:10px;font-size:14px;font-weight:700;white-space:nowrap}
+.adm-btn{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6)}
+.instalar-btn{background:#fff;color:var(--verde-escuro);border:1px solid transparent}
 .instalar-btn[hidden]{display:none}
-.abas{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:#fff;border-bottom:1px solid #dde2ea;-webkit-overflow-scrolling:touch}
-.aba{flex:0 0 auto;border:1px solid #c9d1de;background:#fff;color:#1f2a44;border-radius:999px;padding:7px 14px;font-size:.9rem;white-space:nowrap}
-.aba.ativa{background:#1f2a44;color:#fff;border-color:#1f2a44}
-main{max-width:900px;margin:0 auto;padding:12px}
-.titulo-escala{font-size:1.15rem;margin:4px 0 10px}
-.nav-mes{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.nav-mes button{border:1px solid #c9d1de;background:#fff;border-radius:8px;padding:6px 12px;font-size:1rem}
-#mesLabel{font-weight:600;min-width:140px;text-align:center}
-.hoje-btn{margin-left:auto}
-.lista{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
-.card{background:#fff;border-radius:12px;padding:12px;border:1px solid #dde2ea;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+
+/* Abas das escalas */
+.abas{display:flex;gap:8px;overflow-x:auto;padding:12px 16px;background:#fff;border-bottom:1px solid var(--borda);-webkit-overflow-scrolling:touch}
+.aba{flex:0 0 auto;border:1px solid #cbd5e1;background:#fff;color:var(--texto);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:700;white-space:nowrap}
+.aba.ativa{background:var(--verde);color:#fff;border-color:var(--verde)}
+
+/* Layout */
+main{max-width:1200px;margin:0 auto;padding:20px 16px 48px}
+.titulo-escala{font-size:22px;margin:0 0 12px}
+.nav-mes{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.nav-mes button{min-height:42px;border:1px solid #cbd5e1;background:#fff;color:var(--texto);border-radius:10px;padding:8px 14px;font-size:16px;font-weight:700}
+#mesLabel{font-weight:700;font-size:17px;min-width:150px;text-align:center}
+.hoje-btn{margin-left:auto;background:var(--verde)!important;color:#fff!important;border-color:var(--verde)!important;font-size:14px!important}
+
+/* Cards da escala */
+.lista{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 14px rgba(15,23,42,.06)}
 .card.passado{opacity:.6}
-.card.hoje,.card.proximo{border:2px solid #2f6fdf}
-.card-top{display:flex;align-items:center;gap:6px;margin-bottom:8px}
-.data{font-weight:700;font-size:1rem}
-.badge{background:#e7eefc;color:#1f4fa8;border-radius:6px;padding:2px 8px;font-size:.8rem;font-weight:600}
-.tag{margin-left:auto;background:#2f6fdf;color:#fff;border-radius:6px;padding:2px 8px;font-size:.75rem}
-.linha{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid #eef1f5;font-size:.92rem}
-.pos{color:#5b6576;white-space:nowrap}
-.nomes{font-weight:600;text-align:right}
-.vazio{color:#9aa3b2}
-.obs{color:#c0392b;font-weight:600;font-size:.9rem;margin:14px 2px}
-.adm{background:#fff;border:1px solid #dde2ea;border-radius:12px;padding:14px;margin-top:10px;scroll-margin-top:70px}
-.adm h2{font-size:1.05rem;margin:0 0 10px}
-.adm h3{font-size:.95rem;margin:18px 0 8px}
-.grupo-tit{margin:18px 0 6px;font-size:1rem;color:#1f2a44}
-.campo{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:#5b6576;margin-bottom:8px}
-.campo input{font-size:1rem;padding:7px 8px;border:1px solid #c9d1de;border-radius:8px}
-.ajuda{font-size:.82rem;color:#5b6576;margin:6px 0 10px}
-.tabela-wrap{overflow-x:auto}
-table.ciclo{border-collapse:collapse;width:100%;min-width:620px}
-table.ciclo th,table.ciclo td{border:1px solid #dde2ea;padding:4px;font-size:.85rem;text-align:center}
-table.ciclo th{background:#e7eefc}
-table.ciclo input{width:100%;font-size:.88rem;padding:5px;border:1px solid #c9d1de;border-radius:6px}
-.dt{display:block;font-size:.7rem;color:#8a93a3}
-textarea{width:100%;font:inherit;padding:8px;border:1px solid #c9d1de;border-radius:8px}
+.card.hoje,.card.proximo{outline:3px solid #facc15}
+.card-topo{background:var(--verde);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card-topo h3{margin:0;font-size:18px}
+.card-topo span{font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px}
+.tag{background:#facc15;color:#422006;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700}
+.postos{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:12px}
+.posto{background:#f8fafc;border-radius:10px;padding:10px 12px;min-width:0}
+.posto small{display:block;color:var(--verde);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.posto strong{display:block;margin-top:4px;overflow-wrap:anywhere}
+.posto.vago strong{color:#94a3b8;font-weight:500;font-style:italic}
+.vazio{background:#fff;border-radius:16px;padding:36px 20px;text-align:center;color:var(--cinza)}
+.obs{margin:16px 0 0;padding:12px;background:#ecfdf5;border-radius:10px;color:#065f46;font-size:14px;font-weight:600}
+
+/* ADM */
+.adm{background:#fff;border:1px solid #a7f3d0;border-radius:16px;padding:18px;margin-top:18px;box-shadow:0 4px 16px rgba(15,23,42,.05);scroll-margin-top:80px}
+.adm h2{margin:0 0 12px;font-size:19px}
+.adm h3{font-size:16px;margin:20px 0 8px;padding-top:12px;border-top:1px solid var(--borda)}
+.adm h3.grupo-tit{color:var(--verde-escuro)}
+.campo{display:grid;gap:6px;font-weight:700;font-size:14px;margin-bottom:8px}
+.campo input,textarea{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:0 12px;background:#fff;color:var(--texto);font:inherit;font-weight:400}
+.campo input{height:42px}
+textarea{padding:10px 12px}
+input:focus,textarea:focus{outline:3px solid rgba(16,185,129,.25);border-color:#059669}
+.ajuda{margin:10px 0 12px;padding:12px;background:#ecfdf5;border-radius:10px;color:#065f46;font-size:14px}
+.tabela-wrap{overflow-x:auto;border:1px solid var(--borda);border-radius:12px}
+table.ciclo{border-collapse:collapse;width:100%;min-width:640px}
+table.ciclo th,table.ciclo td{border-bottom:1px solid var(--borda);padding:6px;font-size:14px;text-align:center}
+table.ciclo th{background:var(--verde-claro);color:#065f46;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+table.ciclo td:first-child{font-weight:700}
+table.ciclo input{width:100%;height:38px;font:inherit;font-size:14px;padding:0 10px;border:1px solid #cbd5e1;border-radius:8px}
+.dt{display:block;font-size:11px;color:var(--cinza);font-weight:400}
 details.auto{margin-top:12px}
-details.auto summary{cursor:pointer;font-weight:600}
-.acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.pri,.sec,.mini{border-radius:8px;padding:8px 14px;border:1px solid #1f2a44}
-.pri{background:#1f2a44;color:#fff}
-.sec{background:#fff;color:#1f2a44;margin-top:8px}
+details.auto summary{cursor:pointer;font-weight:700;color:var(--verde)}
+.acoes{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.pri,.sec,.mini{min-height:42px;padding:10px 16px;border-radius:10px;border:1px solid transparent;font-size:14px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.pri{background:var(--verde);color:#fff}
+.pri:hover{background:#036648}
+.sec{background:#fff;color:var(--texto);border-color:#cbd5e1;margin-top:10px}
+.sec:hover{background:#f8fafc}
 .acoes .sec{margin-top:0}
-.arquivo{display:inline-flex;align-items:center;cursor:pointer;font-size:inherit}
-.mini{padding:4px 10px;background:#fff;font-size:.82rem}
-.perigo{border-color:#c0392b;color:#c0392b}
-.links div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #eef1f5;font-size:.9rem}
-@media (max-width:420px){
-  .titulo .ccb{font-size:.7rem}
-  .titulo strong{font-size:1rem}
-  .instalar-btn,.adm-btn{padding:6px 9px;font-size:.85rem}
-  #mesLabel{min-width:120px}
+.arquivo{cursor:pointer}
+.mini{min-height:34px;padding:6px 12px;background:#fff;border-color:#cbd5e1;font-size:13px}
+.perigo{background:#fff1f2;color:var(--vermelho);border-color:#fecdd3}
+.links div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--borda);font-size:14px}
+
+/* Responsivo */
+@media (max-width:900px){.lista{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){
+  .lista{grid-template-columns:1fr}
+  main{padding:14px 10px 40px}
+  .adm{padding:14px}
+  .acoes .pri,.acoes .sec{flex:1}
+  .titulo .ccb{font-size:11px}
+  .titulo strong{font-size:18px}
+  .adm-btn,.instalar-btn{padding:6px 10px;font-size:13px;min-height:36px}
+  #mesLabel{min-width:120px;font-size:16px}
 }

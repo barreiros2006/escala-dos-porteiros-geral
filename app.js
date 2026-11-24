@@ -196,13 +196,18 @@ function renderLista() {
     const cls = t === h ? 'hoje' : (t === proximo ? 'proximo' : (t < h ? 'passado' : ''));
     const tag = t === h ? '<span class="tag">Hoje</span>' : (t === proximo ? '<span class="tag">Próximo</span>' : '');
     return `<article class="card ${cls}">
-      <div class="card-top">
-        <span class="data">${fmtData(t).slice(0, 5)} · ${DIAS_CURTOS[e.dia]}</span>
-        ${r.grupo ? `<span class="badge">${esc(r.grupo)}</span>` : ''}${tag}
+      <div class="card-topo">
+        <h3>${fmtData(t)}</h3>
+        <span>${r.grupo ? esc(r.grupo) : DIAS_CURTOS[e.dia]}${tag}</span>
       </div>
-      ${e.posicoes.map((p, i) => `<div class="linha"><span class="pos">${esc(p.nome)}</span><span class="nomes">${nomesHTML(r.celulas[i])}</span></div>`).join('')}
+      <div class="postos">
+        ${e.posicoes.map((p, i) => {
+          const nomes = (r.celulas[i] || []).filter(Boolean);
+          return `<div class="posto ${nomes.length ? '' : 'vago'} ${p.vagas > 1 ? 'largo' : ''}"><small>${esc(p.nome)}</small><strong>${nomes.length ? nomes.map(esc).join(' – ') : 'Vago'}</strong></div>`;
+        }).join('')}
+      </div>
     </article>`;
-  }).join('') || '<p class="vazio">Nenhum culto neste mês.</p>';
+  }).join('') || '<div class="vazio">Nenhum culto neste mês.</div>';
 }
 
 /* ---------- ADM ---------- */

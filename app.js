@@ -454,30 +454,55 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 render();
 window.scrollTo(0, 0);
 
-/* ---------- funcionamento offline (service-worker.js) ---------- */
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js').catch(err => console.warn('Service worker não registrado', err));
+/* ---------- funcionamento offline e atualização (service-worker.js) ---------- */
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  // quando a versão nova assume o controle, recarrega a página uma única vez
+  let recarregando = false;
+  const tinhaControle = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!tinhaControle || recarregando) return;
+    recarregando = true;
+    location.reload();
+  });
+
+  navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+    .then(reg => {
+      reg.update();
+      // verifica de novo ao voltar para o app (útil no PC, onde a janela fica aberta)
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update(); });
+      setInterval(() => reg.update(), 30 * 60 * 1000);
+    })
+    .catch(err => console.warn('Service worker não registrado', err));
+}
+
+/* mostra a versão instalada (lida do nome do cache: escala-porta-vN) */
+if ('caches' in window) {
+  caches.keys().then(ks => {
+    const k = ks.filter(x => x.startsWith('escala-porta-v')).sort().pop();
+    if (k && $('versao')) $('versao').textContent = 'Versão ' + k.replace('escala-porta-v', '');
+  }).catch(() => {});
 }
 
 /* ---------- botão Instalar app ---------- */
 (function instalarApp() {
   const btn = $('btnInstalar');
   if (!btn) return;
-  const instalado = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const instalado = () => window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: window-controls-overlay)').matches || navigator.standalone === true;
   const ehIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const ehCelular = ehIOS || /android/i.test(navigator.userAgent);
   let pedido = null;
 
+  // só esconde quando o app já está aberto como instalado (celular ou PC)
   if (instalado()) { btn.hidden = true; return; }
+  btn.hidden = false;
 
-  // Android / Chrome / Edge: o navegador avisa quando o app pode ser instalado
+  // Chrome / Edge (Android e PC): guarda o pedido de instalação do navegador
   window.addEventListener('beforeinstallprompt', ev => {
     ev.preventDefault();
     pedido = ev;
-    btn.hidden = false;
   });
-  // iPhone/iPad não tem esse aviso: mostra o botão com instruções
-  if (ehIOS) btn.hidden = false;
 
   btn.addEventListener('click', async () => {
     if (pedido) {
@@ -485,8 +510,16 @@ if ('serviceWorker' in navigator) {
       const r = await pedido.userChoice;
       pedido = null;
       if (r.outcome === 'accepted') btn.hidden = true;
+      return;
+    }
+    if (location.protocol === 'file:') {
+      alert('Para instalar, abra o app pelo link do GitHub Pages (https://...).\n\nAberto direto do computador (arquivo local), o navegador não permite instalar.');
     } else if (ehIOS) {
       alert('Para instalar no iPhone/iPad:\n\n1. Toque no botão Compartilhar (quadrado com seta para cima) do Safari.\n2. Toque em "Adicionar à Tela de Início".\n3. Toque em "Adicionar".');
+    } else if (ehCelular) {
+      alert('Para instalar no Android:\n\nChrome: menu ⋮ → "Instalar app" ou "Adicionar à tela inicial".');
+    } else {
+      alert('Para instalar no PC:\n\n• Chrome: menu ⋮ → "Transmitir, salvar e compartilhar" → "Instalar página como app".\n• Edge: menu ⋯ → "Aplicativos" → "Instalar este site como um aplicativo".\n\nTambém aparece um ícone de instalar na barra de endereço.\nSe já estiver instalado, abra pelo atalho da Área de Trabalho ou do Menu Iniciar.');
     }
   });
 

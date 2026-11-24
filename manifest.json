@@ -1,6 +1,9 @@
 {
   "name": "Escala – Auxiliares da Porta",
   "short_name": "Escala Porta",
+  "id": "./",
+  "description": "Escala dos auxiliares da porta – cultos oficiais e culto de jovens",
+  "lang": "pt-BR",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

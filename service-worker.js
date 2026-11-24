@@ -1,6 +1,7 @@
 /* Funcionamento offline – Escala Auxiliares da Porta
-   Troque o número da versão a cada atualização publicada. */
-const CACHE = 'escala-porta-v8';
+   A CADA ATUALIZAÇÃO PUBLICADA, aumente o número abaixo (v9 → v10 → v11 ...).
+   É isso que faz celulares e PCs baixarem a versão nova. */
+const CACHE = 'escala-porta-v9';
 const ARQUIVOS = [
   './',
   './index.html',
@@ -11,26 +12,33 @@ const ARQUIVOS = [
   './icon-512.png'
 ];
 
-// instala e guarda os arquivos do app
+// instala buscando os arquivos direto do servidor (ignora o cache do navegador)
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARQUIVOS)));
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(ARQUIVOS.map(u => new Request(u, { cache: 'reload' }))))
+  );
   self.skipWaiting();
 });
 
-// remove caches antigos (inclusive do app anterior)
+// remove caches de versões anteriores (inclusive do app antigo)
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    caches.keys()
+      .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// rede primeiro (pega atualizações); sem internet, usa o cache
+// rede primeiro, sem cache do navegador (sempre pega o último deploy);
+// sem internet, usa a cópia guardada
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  const mesmoSite = url.origin === location.origin;
+  const busca = mesmoSite ? fetch(e.request.url, { cache: 'no-store' }) : fetch(e.request);
   e.respondWith(
-    fetch(e.request).then(r => {
-      if (r.ok && new URL(e.request.url).origin === location.origin) {
+    busca.then(r => {
+      if (r.ok && mesmoSite) {
         const cp = r.clone();
         caches.open(CACHE).then(c => c.put(e.request, cp));
       }

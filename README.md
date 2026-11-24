@@ -20,7 +20,7 @@ Posições: **Pedido de Oração**, **Átrio** (2 pessoas nos cultos oficiais), 
 |---|---|
 | `index.html` | Página do app |
 | `style.css` | Visual (tema verde) |
-| `app.js` | Escalas, rodízio, ADM, exportação e botão Instalar |
+| `app.js` | Escalas, rodízio, ADM, exportação Excel e botão Instalar |
 | `manifest.json` | Nome, cores e ícones do app instalado |
 | `service-worker.js` | Funcionamento offline e atualização automática |
 | `icon-192.png`, `icon-512.png` | Ícones |
@@ -51,12 +51,12 @@ No PC o app ganha atalho na Área de Trabalho e no Menu Iniciar e abre em janela
 1. Substitua os arquivos alterados no GitHub.
 2. Abra `service-worker.js` e **aumente o número da versão**:
    ```js
-   const CACHE = 'escala-porta-v9';   // mude para v10, depois v11...
+   const CACHE = 'escala-porta-v10';   // mude para v11, depois v12...
    ```
 3. Faça o commit e aguarde 1–2 minutos o GitHub Pages publicar.
 
 Celulares e PCs baixam a versão nova **sozinhos** ao abrir o app com internet (ou ao voltar para a janela do app) e a página recarrega automaticamente.
-A versão em uso aparece no rodapé do app (ex.: **Versão 9**).
+A versão em uso aparece no rodapé do app (ex.: **Versão 10**).
 
 **Se mesmo assim não atualizar** (só na primeira vez, saindo de uma versão antiga):
 - PC: com o app aberto, pressione **Ctrl + Shift + R**; ou F12 → *Application* → *Service workers* → *Unregister* e recarregue.
@@ -72,13 +72,16 @@ A versão em uso aparece no rodapé do app (ex.: **Versão 9**).
 
 > A senha só evita alterações por engano; não é uma proteção de segurança.
 
+## Exportar Excel
+
+- **Exportar Excel – [escala]**: só a escala aberta, do ano exibido.
+- **Exportar Excel – todas**: um arquivo com uma aba para cada escala.
+- Cada mês começa com uma linha de cabeçalho na cor **#d1fae5** (verde-claro):
+  `Data | Pedido de Oração | Átrio | Porta do Meio | Banheiro` (no Culto de Jovens também a coluna `Grupo`).
+- O arquivo `.xlsx` é gerado pelo próprio app — **funciona sem internet**.
+
 ## Dados e backup
 
 - Os dados ficam salvos **no próprio aparelho** (navegador). Alterações feitas no celular **não aparecem** no PC e vice-versa.
 - Para levar os dados de um aparelho para outro: **ADM → Exportar JSON** em um e **ADM → Importar JSON** no outro.
 - **Restaurar original desta escala** volta a escala para os dados que vêm no `app.js`.
-
-## Exportar
-
-- **Excel (.xlsx):** uma escala ou todas, do ano exibido (precisa de internet).
-- Sem internet, a exportação sai em **CSV**, que também abre no Excel.

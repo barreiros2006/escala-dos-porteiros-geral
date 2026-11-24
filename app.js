@@ -180,11 +180,6 @@ function renderNav() {
   $('mesLabel').textContent = `${MESES[state.mes]} ${state.ano}`;
 }
 
-function nomesHTML(lista) {
-  const l = lista.filter(Boolean);
-  return l.length ? l.map(esc).join(' – ') : '<span class="vazio">—</span>';
-}
-
 function renderLista() {
   const e = escAtual();
   const datas = datasDoPeriodo(e, state.ano, state.mes);
@@ -203,7 +198,7 @@ function renderLista() {
       <div class="postos">
         ${e.posicoes.map((p, i) => {
           const nomes = (r.celulas[i] || []).filter(Boolean);
-          return `<div class="posto ${nomes.length ? '' : 'vago'} ${p.vagas > 1 ? 'largo' : ''}"><small>${esc(p.nome)}</small><strong>${nomes.length ? nomes.map(esc).join(' – ') : 'Vago'}</strong></div>`;
+          return `<div class="posto ${nomes.length ? '' : 'vago'}"><small>${esc(p.nome)}</small><strong>${nomes.length ? nomes.map(esc).join(' – ') : 'Vago'}</strong></div>`;
         }).join('')}
       </div>
     </article>`;
@@ -316,25 +311,98 @@ function lerFormulario(e) {
 
 function persistir() { salvar(state.dados); render(); }
 
-/* ---------- exportação ---------- */
+/* =========================================================
+   EXPORTAÇÃO EXCEL (.xlsx gerado pelo próprio app — funciona offline)
+   Cada mês começa com uma linha de cabeçalho na cor #d1fae5
+   ========================================================= */
+const COR_CABECALHO = 'D1FAE5';
+
+/* linhas da planilha: [{ cab: true|false, valores: [...] }] */
 function linhasExport(e, ano) {
   const cab = ['Data'].concat(e.tipo === 'grupos' ? ['Grupo'] : [], e.posicoes.map(p => p.nome));
-  const linhas = datasDoPeriodo(e, ano, null).map(t => {
-    const r = escalaDoDia(e, t);
-    return [fmtData(t)].concat(e.tipo === 'grupos' ? [r.grupo] : [], r.celulas.map(c => c.filter(Boolean).join(' - ')));
-  });
-  return [cab].concat(linhas);
+  const out = [];
+  for (let m = 0; m < 12; m++) {
+    const datas = datasDoPeriodo(e, ano, m);
+    if (!datas.length) continue;
+    out.push({ cab: true, valores: cab });
+    datas.forEach(t => {
+      const r = escalaDoDia(e, t);
+      out.push({
+        cab: false,
+        valores: [fmtData(t)].concat(e.tipo === 'grupos' ? [r.grupo] : [], r.celulas.map(c => c.filter(Boolean).join(' - ')))
+      });
+    });
+  }
+  return out;
 }
 
-function carregarXLSX() {
-  if (window.XLSX) return Promise.resolve(window.XLSX);
-  return new Promise((ok, falha) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-    s.onload = () => ok(window.XLSX);
-    s.onerror = () => falha(new Error('sem internet'));
-    document.head.appendChild(s);
+const xmlEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const nomeColuna = i => { let s = ''; i++; while (i) { const r = (i - 1) % 26; s = String.fromCharCode(65 + r) + s; i = Math.floor((i - 1) / 26); } return s; };
+
+function planilhaXML(e, ano) {
+  const linhas = linhasExport(e, ano);
+  const ncol = linhas[0] ? linhas[0].valores.length : 1;
+  const larguras = Array.from({ length: ncol }, (_, i) =>
+    i === 0 ? 12 : (e.tipo === 'grupos' && i === 1 ? 11 : 26));
+  const cols = larguras.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('');
+  const rows = linhas.map((l, r) => `<row r="${r + 1}">${l.valores.map((v, c) =>
+    `<c r="${nomeColuna(c)}${r + 1}" t="inlineStr"${l.cab ? ' s="1"' : ''}><is><t>${xmlEsc(v)}</t></is></c>`).join('')}</row>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${cols}</cols><sheetData>${rows}</sheetData></worksheet>`;
+}
+
+function arquivosXlsx(escalas, ano) {
+  const nomesAbas = escalas.map(e => e.curto.replace(/[\\/?*[\]:]/g, '').slice(0, 31));
+  const f = {};
+  f['[Content_Types].xml'] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${escalas.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`;
+  f['_rels/.rels'] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  f['xl/workbook.xml'] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${nomesAbas.map((n, i) => `<sheet name="${xmlEsc(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`;
+  f['xl/_rels/workbook.xml.rels'] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${escalas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${escalas.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  f['xl/styles.xml'] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF${COR_CABECALHO}"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  escalas.forEach((e, i) => { f[`xl/worksheets/sheet${i + 1}.xml`] = planilhaXML(e, ano); });
+  return f;
+}
+
+/* ZIP simples (sem compressão) para montar o .xlsx */
+const CRC_TAB = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_TAB[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+
+function zipar(arquivos) {
+  const enc = new TextEncoder();
+  const partes = [], central = [];
+  let pos = 0;
+  Object.keys(arquivos).forEach(nome => {
+    const nb = enc.encode(nome), dados = enc.encode(arquivos[nome]), crc = crc32(dados);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+    lh.setUint16(8, 0, true); lh.setUint16(10, 0, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, dados.length, true); lh.setUint32(22, dados.length, true);
+    lh.setUint16(26, nb.length, true); lh.setUint16(28, 0, true);
+    partes.push(new Uint8Array(lh.buffer), nb, dados);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint16(10, 0, true); ch.setUint16(12, 0, true); ch.setUint16(14, 0x21, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, dados.length, true); ch.setUint32(24, dados.length, true);
+    ch.setUint16(28, nb.length, true); ch.setUint32(42, pos, true);
+    central.push(new Uint8Array(ch.buffer), nb);
+    pos += 30 + nb.length + dados.length;
   });
+  const tamCentral = central.reduce((a, p) => a + p.length, 0);
+  const fim = new DataView(new ArrayBuffer(22));
+  const n = Object.keys(arquivos).length;
+  fim.setUint32(0, 0x06054b50, true); fim.setUint16(8, n, true); fim.setUint16(10, n, true);
+  fim.setUint32(12, tamCentral, true); fim.setUint32(16, pos, true);
+  return new Blob(partes.concat(central, [new Uint8Array(fim.buffer)]),
+    { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 
 function baixar(nome, blob) {
@@ -345,23 +413,11 @@ function baixar(nome, blob) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-async function exportarExcel(escalas, ano, nomeArq) {
+function exportarExcel(escalas, ano, nomeArq) {
   try {
-    const X = await carregarXLSX();
-    const wb = X.utils.book_new();
-    escalas.forEach(e => {
-      const linhas = linhasExport(e, ano);
-      const ws = X.utils.aoa_to_sheet(linhas);
-      ws['!cols'] = linhas[0].map((_, i) => ({ wch: i === 0 ? 12 : 26 }));
-      X.utils.book_append_sheet(wb, ws, e.curto.slice(0, 31));
-    });
-    X.writeFile(wb, nomeArq + '.xlsx');
+    baixar(nomeArq + '.xlsx', zipar(arquivosXlsx(escalas, ano)));
   } catch (err) {
-    // sem internet: exporta CSV (abre no Excel)
-    const csv = escalas.map(e => [[e.nome]].concat(linhasExport(e, ano))
-      .map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n')).join('\r\n\r\n');
-    baixar(nomeArq + '.csv', new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
-    alert('Sem conexão para gerar .xlsx — foi exportado em CSV (abre no Excel).');
+    alert('Não foi possível gerar o Excel: ' + err.message);
   }
 }
 
@@ -478,7 +534,8 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 /* mostra a versão instalada (lida do nome do cache: escala-porta-vN) */
 if ('caches' in window) {
   caches.keys().then(ks => {
-    const k = ks.filter(x => x.startsWith('escala-porta-v')).sort().pop();
+    const k = ks.filter(x => x.startsWith('escala-porta-v'))
+      .sort((a, b) => parseInt(a.slice(14)) - parseInt(b.slice(14))).pop();
     if (k && $('versao')) $('versao').textContent = 'Versão ' + k.replace('escala-porta-v', '');
   }).catch(() => {});
 }

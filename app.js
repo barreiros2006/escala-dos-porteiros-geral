@@ -5,7 +5,7 @@
    carregar JSON ao abrir.
    ========================================================= */
 
-const STORAGE_KEY = 'escalaPorta.v4';
+const STORAGE_KEY = 'escalaPorta.v5';
 const LAST_KEY = 'escalaPorta.ultima';
 const DIA_MS = 864e5;
 const DIAS_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -44,13 +44,29 @@ function gerarCiclo(nomes, pos) {
   return rows;
 }
 
+/* Converte o rodízio do app antigo (domingos contados desde 04/01/2026)
+   em ciclo semana a semana para cada grupo */
+function cicloJovensAntigo(base, grupos) {
+  const G = grupos.length;
+  return grupos.map((g, gi) => {
+    const m = g.membros.length;
+    const ciclo = [];
+    for (let n = 0; n < m; n++) {
+      const ms = toUTC(base) + (n * G + gi) * 7 * DIA_MS;
+      const rot = semanas('2026-01-04', ms);
+      ciclo.push(g.membros.map((_, s) => [g.membros[mod(s + rot, m)]]));
+    }
+    return { nome: g.nome, ciclo };
+  });
+}
+
 /* ---------- dados padrão (planilhas 2º semestre 2026) ---------- */
 function dadosPadrao() {
   const posQuinta = posicoes([1, 2, 1, 1]);
   const posSabado = posicoes([1, 2, 1, 1]);
   const posDomingo = posicoes([1, 2, 1, 1]);
   return {
-    versao: 4,
+    versao: 5,
     pin: '1234',
     escalas: [
       {
@@ -71,14 +87,12 @@ function dadosPadrao() {
       {
         id: 'jovens', nome: 'Domingo – Culto de Jovens', curto: 'Jovens', dia: 0, tipo: 'grupos',
         posicoes: posicoes([1, 1, 1, 1]), dataBase: '2026-11-22',
-        // rodízio das posições igual ao app antigo (escala.json v7):
-        // conta os domingos desde 04/01/2026 e gira a lista uma casa por domingo
-        rotBase: '2026-01-04',
-        grupos: [
+        // ciclo de cada grupo calculado com a mesma regra do app antigo (escala.json v7)
+        grupos: cicloJovensAntigo('2026-11-22', [
           { nome: 'Grupo 1', membros: ['Claudeci', 'Willian', 'Casé', 'Rodrigo'] },
           { nome: 'Grupo 2', membros: ['Jorge', 'Milton', 'Luis', 'Arthur'] },
           { nome: 'Grupo 3', membros: ['Edvaldo', 'Rafael', 'Pedro', 'Marcelo'] }
-        ]
+        ])
       }
     ]
   };
@@ -110,19 +124,14 @@ function escalaDoDia(e, ms) {
     const row = e.ciclo[mod(w, e.ciclo.length)];
     return { grupo: null, celulas: e.posicoes.map((p, i) => row[i] || []) };
   }
-  // grupos com revezamento
+  // grupos com revezamento: cada grupo tem seu próprio ciclo
   const G = e.grupos.length;
   const g = mod(w, G);
-  const rot = semanas(e.rotBase || e.dataBase, ms); // giro das posições
-  const membros = e.grupos[g].membros.filter(x => x !== '');
-  const m = membros.length;
-  const celulas = [];
-  let s = 0;
-  e.posicoes.forEach(p => {
-    const c = [];
-    for (let k = 0; k < p.vagas; k++, s++) c.push(m ? membros[mod(s + rot, m)] : '');
-    celulas.push(c.filter(x => x !== undefined));
-  });
+  const n = Math.floor(w / G); // quantas vezes o grupo já trabalhou desde a data-base
+  const ciclo = e.grupos[g].ciclo;
+  if (!ciclo.length) return { grupo: e.grupos[g].nome, celulas: e.posicoes.map(() => []) };
+  const row = ciclo[mod(n, ciclo.length)];
+  const celulas = e.posicoes.map((p, i) => row[i] || []);
   return { grupo: e.grupos[g].nome, celulas };
 }
 
@@ -212,35 +221,15 @@ function renderAdm() {
         <input type="date" id="admBase" value="${esc(e.dataBase)}"></label>
       <p class="ajuda">Ciclo de ${e.ciclo.length} semana(s). Depois da última semana, volta para a Semana 1.
       Vários nomes na mesma posição: separe com hífen (ex.: GERALDO - VALENTINO).</p>
-      <div class="tabela-wrap"><table class="ciclo">
-        <thead><tr><th>Semana</th>${e.posicoes.map(p => `<th>${esc(p.nome)}</th>`).join('')}<th></th></tr></thead>
-        <tbody>${e.ciclo.map((row, r) => `<tr>
-          <td>${r + 1}</td>
-          ${e.posicoes.map((p, i) => `<td><input data-r="${r}" data-i="${i}" class="celula" value="${esc((row[i] || []).join(' - '))}"></td>`).join('')}
-          <td><button class="mini perigo" data-del="${r}" title="Remover semana">✕</button></td></tr>`).join('')}
-        </tbody></table></div>
-      <button class="sec" id="admAddLinha">+ Adicionar semana</button>
-      <details class="auto">
-        <summary>Gerar rodízio automático</summary>
-        <p class="ajuda">Um nome por linha, na ordem da Semana 1. A cada culto todos andam uma posição.
-        Isso substitui o ciclo atual desta escala.</p>
-        <textarea id="admNomes" rows="6">${esc(nomesUnicos(e).join('\n'))}</textarea>
-        <button class="sec" id="admGerar">Gerar ciclo</button>
-      </details>`;
+      ${blocoCiclo(e, -1)}`;
   } else {
-    const total = e.posicoes.reduce((a, p) => a + p.vagas, 0);
-    const slots = e.posicoes.flatMap(p => Array.from({ length: p.vagas }, () => p.nome));
     corpo = `
-      <label class="campo">Data em que o ${esc(e.grupos[0].nome)} trabalhou
+      <label class="campo">Data em que o ${esc(e.grupos[0].nome)} trabalhou (Semana 1 do ${esc(e.grupos[0].nome)})
         <input type="date" id="admBase" value="${esc(e.dataBase)}"></label>
       <p class="ajuda">Os grupos seguem em sequência (${e.grupos.map(g => esc(g.nome)).join(' → ')}).
-      Os nomes abaixo são a ordem base do grupo (mesma ordem do app antigo);
-      o app gira as posições automaticamente a cada domingo.</p>
-      ${e.grupos.map((g, gi) => `
-        <fieldset class="grupo"><legend>${esc(g.nome)}</legend>
-          ${Array.from({ length: total }, (_, k) => `<label class="campo">Membro ${k + 1}
-            <input class="membro" data-g="${gi}" data-k="${k}" value="${esc(g.membros[k] || '')}"></label>`).join('')}
-        </fieldset>`).join('')}`;
+      Cada grupo tem seu próprio ciclo: cada linha é uma vez que o grupo trabalha.
+      Depois da última linha, volta para a Semana 1.</p>
+      ${e.grupos.map((g, gi) => `<h3 class="grupo-tit">${esc(g.nome)}</h3>${blocoCiclo(e, gi)}`).join('')}`;
   }
 
   box.innerHTML = `
@@ -266,10 +255,38 @@ function renderAdm() {
     <div class="acoes"><button class="sec" id="admPin">Trocar senha</button></div>`;
 }
 
-function nomesUnicos(e) {
+/* g = -1 → escala fixa; g >= 0 → grupo */
+const cicloDe = (e, g) => (g < 0 ? e.ciclo : e.grupos[g].ciclo);
+function setCiclo(e, g, c) { if (g < 0) e.ciclo = c; else e.grupos[g].ciclo = c; }
+function dataLinha(e, g, r) {
+  const sem = g < 0 ? r : r * e.grupos.length + g;
+  return fmtData(toUTC(e.dataBase) + sem * 7 * DIA_MS).slice(0, 5);
+}
+
+function blocoCiclo(e, g) {
+  const ciclo = cicloDe(e, g);
+  return `
+      <div class="tabela-wrap"><table class="ciclo">
+        <thead><tr><th>Semana</th>${e.posicoes.map(p => `<th>${esc(p.nome)}</th>`).join('')}<th></th></tr></thead>
+        <tbody>${ciclo.map((row, r) => `<tr>
+          <td>${r + 1}<small class="dt">${dataLinha(e, g, r)}</small></td>
+          ${e.posicoes.map((p, i) => `<td><input data-g="${g}" data-r="${r}" data-i="${i}" class="celula" value="${esc((row[i] || []).join(' - '))}"></td>`).join('')}
+          <td><button class="mini perigo" data-del="${r}" data-g="${g}" title="Remover semana">✕</button></td></tr>`).join('')}
+        </tbody></table></div>
+      <button class="sec" data-add="${g}">+ Adicionar semana</button>
+      <details class="auto">
+        <summary>Gerar rodízio automático</summary>
+        <p class="ajuda">Um nome por linha, na ordem da Semana 1. A cada culto todos andam uma posição.
+        Isso substitui o ciclo atual${g < 0 ? ' desta escala' : ' do ' + esc(e.grupos[g].nome)}.</p>
+        <textarea id="admNomes${g}" rows="6">${esc(nomesUnicos(ciclo).join('\n'))}</textarea>
+        <button class="sec" data-gerar="${g}">Gerar ciclo</button>
+      </details>`;
+}
+
+function nomesUnicos(ciclo) {
   const vistos = [];
-  (e.ciclo[0] || []).flat().forEach(n => { if (n && !vistos.includes(n)) vistos.push(n); });
-  e.ciclo.flat(2).forEach(n => { if (n && !vistos.includes(n)) vistos.push(n); });
+  (ciclo[0] || []).flat().forEach(n => { if (n && !vistos.includes(n)) vistos.push(n); });
+  ciclo.flat(2).forEach(n => { if (n && !vistos.includes(n)) vistos.push(n); });
   return vistos;
 }
 
@@ -282,17 +299,14 @@ function lerFormulario(e) {
     return false;
   }
   e.dataBase = base;
-  if (e.tipo === 'fixa') {
-    const rows = e.ciclo.map(() => e.posicoes.map(() => []));
-    document.querySelectorAll('#adm .celula').forEach(inp => {
+  const gs = e.tipo === 'fixa' ? [-1] : e.grupos.map((_, i) => i);
+  gs.forEach(g => {
+    const rows = cicloDe(e, g).map(() => e.posicoes.map(() => []));
+    document.querySelectorAll(`#adm .celula[data-g="${g}"]`).forEach(inp => {
       rows[+inp.dataset.r][+inp.dataset.i] = splitNomes(inp.value);
     });
-    e.ciclo = rows;
-  } else {
-    document.querySelectorAll('#adm .membro').forEach(inp => {
-      e.grupos[+inp.dataset.g].membros[+inp.dataset.k] = inp.value.trim();
-    });
-  }
+    setCiclo(e, g, rows);
+  });
   return true;
 }
 
@@ -363,9 +377,23 @@ document.addEventListener('click', ev => {
     return;
   }
   if (b.dataset.del !== undefined) {
-    if (e.ciclo.length <= 1) return alert('O ciclo precisa ter pelo menos 1 semana.');
+    const g = +b.dataset.g;
+    if (cicloDe(e, g).length <= 1) return alert('O ciclo precisa ter pelo menos 1 semana.');
     if (!lerFormulario(e)) return;
-    e.ciclo.splice(+b.dataset.del, 1); persistir(); return;
+    cicloDe(e, g).splice(+b.dataset.del, 1); persistir(); return;
+  }
+  if (b.dataset.add !== undefined) {
+    const g = +b.dataset.add;
+    if (!lerFormulario(e)) return;
+    cicloDe(e, g).push(e.posicoes.map(() => [])); persistir(); return;
+  }
+  if (b.dataset.gerar !== undefined) {
+    const g = +b.dataset.gerar;
+    const nomes = $('admNomes' + g).value.split('\n').map(x => x.trim()).filter(Boolean);
+    if (!nomes.length) return alert('Informe os nomes.');
+    if (!confirm(`Substituir o ciclo atual por um rodízio de ${nomes.length} pessoas?`)) return;
+    if (!lerFormulario(e)) return;
+    setCiclo(e, g, gerarCiclo(nomes, e.posicoes)); persistir(); return;
   }
 
   switch (b.id) {
@@ -378,14 +406,6 @@ document.addEventListener('click', ev => {
       else alert('Senha incorreta.');
       break;
     case 'admSalvar': if (lerFormulario(e)) { persistir(); alert('Alterações salvas.'); } break;
-    case 'admAddLinha': if (lerFormulario(e)) { e.ciclo.push(e.posicoes.map(() => [])); persistir(); } break;
-    case 'admGerar': {
-      const nomes = $('admNomes').value.split('\n').map(s => s.trim()).filter(Boolean);
-      if (!nomes.length) return alert('Informe os nomes.');
-      if (!confirm(`Substituir o ciclo atual por um rodízio de ${nomes.length} pessoas?`)) return;
-      if (!lerFormulario(e)) return;
-      e.ciclo = gerarCiclo(nomes, e.posicoes); persistir(); break;
-    }
     case 'admRestaurar': {
       if (!confirm(`Restaurar "${e.nome}" para os dados originais? As alterações desta escala serão perdidas.`)) return;
       const orig = dadosPadrao().escalas.find(x => x.id === e.id);
@@ -429,6 +449,40 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 render();
 window.scrollTo(0, 0);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+/* ---------- botão Instalar app ---------- */
+(function instalarApp() {
+  const btn = $('btnInstalar');
+  if (!btn) return;
+  const instalado = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const ehIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let pedido = null;
+
+  if (instalado()) { btn.hidden = true; return; }
+
+  // Android / Chrome / Edge: o navegador avisa quando o app pode ser instalado
+  window.addEventListener('beforeinstallprompt', ev => {
+    ev.preventDefault();
+    pedido = ev;
+    btn.hidden = false;
+  });
+  // iPhone/iPad não tem esse aviso: mostra o botão com instruções
+  if (ehIOS) btn.hidden = false;
+
+  btn.addEventListener('click', async () => {
+    if (pedido) {
+      pedido.prompt();
+      const r = await pedido.userChoice;
+      pedido = null;
+      if (r.outcome === 'accepted') btn.hidden = true;
+    } else if (ehIOS) {
+      alert('Para instalar no iPhone/iPad:\n\n1. Toque no botão Compartilhar (quadrado com seta para cima) do Safari.\n2. Toque em "Adicionar à Tela de Início".\n3. Toque em "Adicionar".');
+    }
+  });
+
+  window.addEventListener('appinstalled', () => { btn.hidden = true; pedido = null; });
+})();
 
 /* exporta para testes */
 if (typeof module !== 'undefined') module.exports = { dadosPadrao, escalaDoDia, toUTC, fmtData };

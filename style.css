@@ -55,3 +55,12 @@ details.auto summary{cursor:pointer;font-weight:600}
 .perigo{border-color:#c0392b;color:#c0392b}
 .links div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #eef1f5;font-size:.9rem}
 @media (max-width:420px){.titulo .ccb{font-size:.7rem}#mesLabel{min-width:120px}}
+
+.dt{display:block;font-size:.7rem;color:#8a93a3}
+.grupo-tit{margin:18px 0 6px;font-size:1rem;color:#1f2a44}
+
+.topo-acoes{display:flex;gap:8px;align-items:center}
+.instalar-btn{background:#2f6fdf;color:#fff;border:0;border-radius:8px;padding:7px 12px;white-space:nowrap}
+.instalar-btn[hidden]{display:none}
+.titulo strong{white-space:nowrap}
+@media (max-width:420px){.titulo strong{font-size:1rem}.instalar-btn,.adm-btn{padding:6px 9px;font-size:.85rem}}
